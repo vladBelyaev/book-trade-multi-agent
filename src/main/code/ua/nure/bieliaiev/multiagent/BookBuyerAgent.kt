@@ -62,7 +62,6 @@ class BookBuyerAgent : Agent() {
             when (step) {
                 0 -> {
                     val cfp = ACLMessage(ACLMessage.CFP)
-                    println(sellerAgents)
                     sellerAgents.forEach { cfp.addReceiver(it) }
                     cfp.content = targetBookTitle
                     cfp.replyWith = "cfp ${System.currentTimeMillis()}"
