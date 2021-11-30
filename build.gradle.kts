@@ -13,7 +13,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.tilab.jade:jade:4.5.0")
+    implementation(fileTree(baseDir = "libs"))
 }
 
 sourceSets {
