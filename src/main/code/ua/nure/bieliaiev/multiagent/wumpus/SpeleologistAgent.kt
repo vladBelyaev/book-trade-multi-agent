@@ -11,25 +11,25 @@ import jade.domain.FIPAException
 import jade.lang.acl.ACLMessage
 import jade.lang.acl.MessageTemplate
 
-private const val SPELIOLOG_CAVE_CONVERSATION_ID = "speliolog-cave"
-private const val SPELIOLOG_CAVE_DO_ACTION_CONVERSATION_ID = "speliolog-cave-action"
-private const val SPELIOLOG_NAVIGATOR_REQUEST_CONVERSATION_ID = "speliolog-navigator-request"
+private const val SPELEOLOGIST_CAVE_CONVERSATION_ID = "speleologist-cave"
+private const val SPELEOLOGIST_CAVE_DO_ACTION_CONVERSATION_ID = "speleologist-cave-action"
+private const val SPELEOLOGIST_NAVIGATOR_REQUEST_CONVERSATION_ID = "speleologist-navigator-request"
 
-class SpeliologAgent : Agent() {
+class SpeleologistAgent : Agent() {
 
     private lateinit var caveAgent: AID
     private lateinit var navigatorAgent: AID
 
     private val perceptsMap = mapOf(
-        "scream" to listOf("I feel scream here", "There is a scream", "It’s a cool scream here"),
+        "scream" to listOf("I hear scream here", "There is a scream", "It’s a awful scream here"),
         "bump" to listOf("I feel bump here", "There is a bump", "It’s a cool bump here"),
-        "glitter" to listOf("I feel glitter here", "There is a glitter", "It’s a cool glitter here"),
+        "glitter" to listOf("I see glitter here", "There is a glitter", "It’s a dazzling glitter here"),
         "breeze" to listOf("I feel breeze here", "There is a breeze", "It’s a cool breeze here"),
         "stench" to listOf("I feel stench here", "There is a stench", "It’s a cool stench here")
     )
 
     override fun setup() {
-        println("Hello!  SpeliologAgent ${aid.name} is ready.")
+        println("Hello! speleologistAgent ${aid.name} is ready.")
         if (!setCaveFromDF() || !setNavigatorFromDF()) {
             return
         }
@@ -38,11 +38,11 @@ class SpeliologAgent : Agent() {
                 val subscribeToCave = ACLMessage(ACLMessage.SUBSCRIBE)
                 subscribeToCave.addReceiver(caveAgent)
                 subscribeToCave.content = "Try to enter cave"
-                subscribeToCave.replyWith = "enter cave ${System.currentTimeMillis()} from speliolog ${aid.name}"
-                subscribeToCave.conversationId = SPELIOLOG_CAVE_CONVERSATION_ID
+                subscribeToCave.replyWith = "enter cave ${System.currentTimeMillis()} from speleologist ${aid.name}"
+                subscribeToCave.conversationId = SPELEOLOGIST_CAVE_CONVERSATION_ID
                 myAgent.send(subscribeToCave)
                 val mt = MessageTemplate.and(
-                    MessageTemplate.MatchConversationId(SPELIOLOG_CAVE_CONVERSATION_ID),
+                    MessageTemplate.MatchConversationId(SPELEOLOGIST_CAVE_CONVERSATION_ID),
                     MessageTemplate.MatchInReplyTo(subscribeToCave.replyWith)
                 )
                 addBehaviour(RequestPerformer(mt))
@@ -51,32 +51,41 @@ class SpeliologAgent : Agent() {
     }
 
     override fun takeDown() {
-        println("SpeliologAgent ${aid.name} terminating.")
+        println("speleologistAgent ${aid.name} terminating.")
     }
 
-    private fun setNavigatorFromDF() =
-        when (val navigatorAgent = findServiceFromDF("navigator")) {
-            null -> {
-                println("No navigators for Speliolog")
-                this.doDelete()
-                false
+    private fun setNavigatorFromDF(): Boolean {
+        return arguments.firstOrNull()?.let { navName ->
+            val template = DFAgentDescription()
+            val sd = ServiceDescription()
+            sd.type = "navigator"
+            template.addServices(sd)
+            try {
+                val result: DFAgentDescription? = DFService.search(this, template)
+                    .firstOrNull { it.name == navName }
+                if (result != null) {
+                    navigatorAgent = result.name
+                    println("Set for speleologist ${aid.name} navigator ${navigatorAgent.name}")
+                    return true
+                }
+            } catch (fe: FIPAException) {
+                fe.printStackTrace()
             }
-            else -> {
-                println("Set for speliolog ${aid.name} navigator ${navigatorAgent.name.name}")
-                this.navigatorAgent = navigatorAgent.name
-                true
-            }
-        }
+            println("No navigators for speleologist")
+            this.doDelete()
+            false
+        } ?: false
+    }
 
     private fun setCaveFromDF() =
         when (val caveAgent = findServiceFromDF("cave")) {
             null -> {
-                println("No caves for Speliolog")
+                println("No caves for speleologist")
                 this.doDelete()
                 false
             }
             else -> {
-                println("Set for speliolog ${aid.name} cave ${caveAgent.name.name}")
+                println("Set for speleologist ${aid.name} cave ${caveAgent.name.name}")
                 this.caveAgent = caveAgent.name
                 true
             }
@@ -123,17 +132,18 @@ class SpeliologAgent : Agent() {
                 1 -> {
                     val request = ACLMessage(ACLMessage.REQUEST)
                     request.addReceiver(caveAgent)
-                    request.replyWith = "cave request ${System.currentTimeMillis()} from speliolog ${aid.name}"
-                    request.conversationId = SPELIOLOG_CAVE_CONVERSATION_ID
+                    request.replyWith = "cave request ${System.currentTimeMillis()} from speleologist ${aid.name}"
+                    request.conversationId = SPELEOLOGIST_CAVE_CONVERSATION_ID
                     myAgent.send(request)
                     mt = MessageTemplate.and(
-                        MessageTemplate.MatchConversationId(SPELIOLOG_CAVE_CONVERSATION_ID),
+                        MessageTemplate.MatchConversationId(SPELEOLOGIST_CAVE_CONVERSATION_ID),
                         MessageTemplate.MatchInReplyTo(request.replyWith)
                     )
                     step = 2
                 }
                 2 -> {
                     myAgent.receive(mt)?.let { reply ->
+                        println("Speleologist ${aid.name} state ${reply.content} from cave")
                         val percepts = reply.content.substringAfter("[")
                             .substringBefore("]")
                             .split(",")
@@ -148,34 +158,37 @@ class SpeliologAgent : Agent() {
                 3 -> {
                     val request = ACLMessage(ACLMessage.REQUEST)
                     request.addReceiver(navigatorAgent)
-                    request.replyWith = "navigator request ${System.currentTimeMillis()} from speliolog ${aid.name}"
-                    request.conversationId = SPELIOLOG_NAVIGATOR_REQUEST_CONVERSATION_ID
+                    request.replyWith = "navigator request ${System.currentTimeMillis()} from speleologist ${aid.name}"
+                    request.conversationId = SPELEOLOGIST_NAVIGATOR_REQUEST_CONVERSATION_ID
                     request.content = navigatorMessage
                     myAgent.send(request)
                     mt = MessageTemplate.and(
-                        MessageTemplate.MatchConversationId(SPELIOLOG_NAVIGATOR_REQUEST_CONVERSATION_ID),
+                        MessageTemplate.MatchConversationId(SPELEOLOGIST_NAVIGATOR_REQUEST_CONVERSATION_ID),
                         MessageTemplate.MatchInReplyTo(request.replyWith)
                     )
                     step = 4
                 }
                 4 -> {
                     myAgent.receive(mt)?.let { reply ->
-                        println("Response from navigator {${reply.content}} for agent ${aid.name}")
                         ActionEnum.fromKey(reply.content)?.let {
                             lastActionEnum = it
+                            println("Response from navigator {${reply.content}} for agent ${aid.name}")
 
                             val cfp = ACLMessage(ACLMessage.CFP)
                             cfp.addReceiver(caveAgent)
-                            cfp.replyWith = "change state in cave for speliolog ${aid.name}. ${System.currentTimeMillis()}"
-                            cfp.conversationId = SPELIOLOG_CAVE_DO_ACTION_CONVERSATION_ID
+                            cfp.replyWith =
+                                "change state in cave for speleologist ${aid.name}. ${System.currentTimeMillis()}"
+                            cfp.conversationId = SPELEOLOGIST_CAVE_DO_ACTION_CONVERSATION_ID
                             cfp.content = it.key
                             myAgent.send(cfp)
                             mt = MessageTemplate.and(
-                                MessageTemplate.MatchConversationId(SPELIOLOG_CAVE_DO_ACTION_CONVERSATION_ID),
+                                MessageTemplate.MatchConversationId(SPELEOLOGIST_CAVE_DO_ACTION_CONVERSATION_ID),
                                 MessageTemplate.MatchInReplyTo(cfp.replyWith)
                             )
                             step = 5
-                        } ?: {
+                        }
+                        if (ActionEnum.fromKey(reply.content) == null) {
+                            println(reply.content)
                             myAgent.doDelete()
                         }
                     } ?: block()

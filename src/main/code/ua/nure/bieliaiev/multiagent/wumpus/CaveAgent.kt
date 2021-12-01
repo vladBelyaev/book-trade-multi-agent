@@ -21,15 +21,14 @@ import aima.core.agent.Agent as AimaAgent
 class CaveAgent : Agent() {
 
     private var agentWithGold: JadeWumpusAgent<WumpusPercept, WumpusAction>? = null
-    private val speliologsInCave = mutableListOf<JadeWumpusAgent<WumpusPercept, WumpusAction>>()
+    private val speleologistsInCave = mutableListOf<JadeWumpusAgent<WumpusPercept, WumpusAction>>()
     private val wumpusEnvironment = WumpusEnvironment(
         WumpusCave(
             4,
             4,
             ""
                 + ". . W G "
-                + ". . ." +
-                " P "
+                + ". P P P "
                 + ". . . . "
                 + "S . . . "
         )
@@ -58,9 +57,9 @@ class CaveAgent : Agent() {
             val messageTemplate = MessageTemplate.MatchPerformative(ACLMessage.SUBSCRIBE)
             myAgent.receive(messageTemplate)?.let { msg ->
                 val agentAID = msg.sender
-                val speliologCaveAgent = JadeWumpusAgent<WumpusPercept, WumpusAction>(agentAID)
-                wumpusEnvironment.addAgent(speliologCaveAgent)
-                speliologsInCave.add(speliologCaveAgent)
+                val speleologistCaveAgent = JadeWumpusAgent<WumpusPercept, WumpusAction>(agentAID)
+                wumpusEnvironment.addAgent(speleologistCaveAgent)
+                speleologistsInCave.add(speleologistCaveAgent)
                 val reply = msg.createReply()
                 reply.content = "Agent ${agentAID.name} entered the cave ${aid.name}"
                 reply.performative = ACLMessage.INFORM
@@ -72,7 +71,7 @@ class CaveAgent : Agent() {
     private inner class EmailBehaviour : CyclicBehaviour() {
         override fun action() {
             val messageTemplate = MessageTemplate.MatchExpression { msg ->
-                speliologsInCave.any { it.speliologAID == msg.sender } &&
+                speleologistsInCave.any { it.speleologistAID == msg.sender } &&
                     (msg.performative == ACLMessage.CFP || msg.performative == ACLMessage.REQUEST)
             }
             myAgent.receive(MessageTemplate(messageTemplate))?.let { msg ->
@@ -89,16 +88,16 @@ class CaveAgent : Agent() {
     ) : OneShotBehaviour() {
         override fun action() {
             val agentAID = msg.sender
-            val speliolog = findSpeliolog(agentAID)
+            val speleologist = findspeleologist(agentAID)
             val reply = msg.createReply()
-            reply.content = wumpusEnvironment.getPerceptSeenBy(speliolog).toAgentPredicate()
+            reply.content = wumpusEnvironment.getPerceptSeenBy(speleologist).toAgentPredicate()
             reply.performative = ACLMessage.INFORM_REF
             myAgent.send(reply)
         }
     }
 
-    private fun findSpeliolog(agentAID: AID) = speliologsInCave
-        .first { it.speliologAID == agentAID }
+    private fun findspeleologist(agentAID: AID) = speleologistsInCave
+        .first { it.speleologistAID == agentAID }
 
     private fun WumpusPercept.toAgentPredicate(): String {
         val percepts = mutableListOf<String>()
@@ -119,27 +118,27 @@ class CaveAgent : Agent() {
     ) : OneShotBehaviour() {
         override fun action() {
             val agentAID = msg.sender
-            val speliolog = findSpeliolog(agentAID)
+            val speleologist = findspeleologist(agentAID)
 
             val reply = msg.createReply()
 
             val actionEnum = ActionEnum.fromKey(msg.content)
-            wumpusEnvironment.execute(speliolog, actionEnum!!.action)
-            println("Agent ${speliolog.speliologAID.name} position after action {${wumpusEnvironment.getAgentPosition(speliolog)}")
+            wumpusEnvironment.execute(speleologist, actionEnum!!.action)
+            println("Agent ${speleologist.speleologistAID.name} position after action {${wumpusEnvironment.getAgentPosition(speleologist)}")
 
             reply.performative = ACLMessage.ACCEPT_PROPOSAL
             myAgent.send(reply)
             if (actionEnum.action == WumpusAction.GRAB && wumpusEnvironment.isGoalGrabbed) {
-                agentWithGold = speliolog
-                println("Agent ${speliolog.speliologAID.name} grab gold")
+                agentWithGold = speleologist
+                println("Agent ${speleologist.speleologistAID.name} grab gold")
             }
 
             if (actionEnum.action == WumpusAction.CLIMB) {
-                if (speliolog == agentWithGold) {
-                    println("Agent ${speliolog.speliologAID.name} climb with gold")
+                if (speleologist == agentWithGold) {
+                    println("Agent ${speleologist.speleologistAID.name} climb with gold")
                     myAgent.doDelete()
                 } else {
-                    println("Agent ${speliolog.speliologAID.name} run away.")
+                    println("Agent ${speleologist.speleologistAID.name} run away.")
                 }
             }
         }
@@ -147,7 +146,7 @@ class CaveAgent : Agent() {
 }
 
 class JadeWumpusAgent<T : WumpusPercept, Z : WumpusAction>(
-    val speliologAID: AID
+    val speleologistAID: AID
 ) : AimaAgent<T, Z> {
     private var alive: Boolean = true
 
