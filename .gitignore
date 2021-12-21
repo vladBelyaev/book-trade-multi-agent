@@ -2,6 +2,10 @@
 .idea
 build
 out
+target
+**/target
+.bsp
+libs
 .gradle
 **/.DS_Store
 
